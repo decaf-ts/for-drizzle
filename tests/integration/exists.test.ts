@@ -110,10 +110,43 @@ forEachDialect("Drizzle EXISTS queries", async (handle) => {
     .execute();
   expect(withAlias).toEqual([]);
 
+  // `exists(false)` is the supported negation: it selects only rows where the
+  // column is null, i.e. the complement of the positive case above.
+  const withoutNickname = await repo
+    .select()
+    .where(Condition.attribute<ExistsUser>("nickname").exists(false))
+    .execute();
+  expect(withoutNickname.map((u) => u.id).sort()).toEqual(["3", "4"]);
+  expect(withoutNickname.every((u) => u.nickname == null)).toBe(true);
+
+  // A column absent on every seeded row is selected in full by the negation.
+  const withoutAlias = await repo
+    .select()
+    .where(Condition.attribute<ExistsUser>("alias").exists(false))
+    .execute();
+  expect(withoutAlias.map((u) => u.id).sort()).toEqual(["1", "2", "3", "4"]);
+
   // `existsBy<Field>` returns true when a record has the field present.
   await expect(repo.existsByName("John Smith")).resolves.toBe(true);
   await expect(repo.existsByNickname("ignored")).resolves.toBe(true);
 
   // `existsBy<Field>` returns false when no seeded record has the field.
   await expect(repo.existsByAlias("ignored")).resolves.toBe(false);
+
+  // `DrizzleStatement.prepare()` is a deliberate no-op, so core `squash()` is never
+  // reached for for-drizzle. Forcing simple-query preparation on a negated EXISTS
+  // must therefore stay on the general query path and return the correct complement
+  // rows rather than squashing into a bogus prepared method name.
+  const forced = repo.override({ forcePrepareSimpleQueries: true });
+  const forcedWithoutNickname = await forced
+    .select()
+    .where(Condition.attribute<ExistsUser>("nickname").exists(false))
+    .execute();
+  expect(forcedWithoutNickname.map((u) => u.id).sort()).toEqual(["3", "4"]);
+
+  const forcedWithNickname = await forced
+    .select()
+    .where(Condition.attribute<ExistsUser>("nickname").exists())
+    .execute();
+  expect(forcedWithNickname.map((u) => u.id).sort()).toEqual(["1", "2"]);
 });

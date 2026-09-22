@@ -113,4 +113,63 @@ describe("DrizzleStatement EXISTS translation", () => {
     );
     expect(serialised.params).toEqual([7]);
   });
+
+  it("translates a negated EXISTS condition into IS NULL", () => {
+    const serialised = serialise(
+      Condition.attribute<ExistsConditionItem>("nickname").exists(false)
+    );
+
+    expect(serialised.sql).toBe(
+      '"exists_condition_items"."nickname" is null'
+    );
+    expect(serialised.params).toEqual([]);
+  });
+
+  it("keeps an explicit exists(true) mapped to IS NOT NULL", () => {
+    const serialised = serialise(
+      Condition.attribute<ExistsConditionItem>("nickname").exists(true)
+    );
+
+    expect(serialised.sql).toBe(
+      '"exists_condition_items"."nickname" is not null'
+    );
+    expect(serialised.params).toEqual([]);
+  });
+
+  it("binds no comparison value for a negated EXISTS leg", () => {
+    const serialised = serialise(
+      Condition.attribute<ExistsConditionItem>("nickname").exists(false)
+    );
+
+    // `false` is a nullability selector, not a bound value: the SQL carries the
+    // literal `is null` and no `?` placeholder.
+    expect(serialised.sql).not.toContain("?");
+    expect(serialised.params).toEqual([]);
+  });
+
+  it("combines a negated EXISTS leg with a normal equality leg under AND", () => {
+    const serialised = serialise(
+      Condition.attribute<ExistsConditionItem>("nickname")
+        .exists(false)
+        .and(Condition.attribute<ExistsConditionItem>("entityId").eq(5))
+    );
+
+    expect(serialised.sql).toBe(
+      '("exists_condition_items"."nickname" is null and "exists_condition_items"."entity_id" = ?)'
+    );
+    expect(serialised.params).toEqual([5]);
+  });
+
+  it("combines a negated EXISTS leg with a normal equality leg under OR", () => {
+    const serialised = serialise(
+      Condition.attribute<ExistsConditionItem>("nickname")
+        .exists(false)
+        .or(Condition.attribute<ExistsConditionItem>("entityId").eq(7))
+    );
+
+    expect(serialised.sql).toBe(
+      '("exists_condition_items"."nickname" is null or "exists_condition_items"."entity_id" = ?)'
+    );
+    expect(serialised.params).toEqual([7]);
+  });
 });
