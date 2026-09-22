@@ -1,6 +1,6 @@
 {
   "name": "@decaf-ts/for-drizzle",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "decaf-ts persistence adapter for Drizzle ORM (sqlite and mysql)",
   "type": "module",
   "exports": {
