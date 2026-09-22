@@ -93,8 +93,9 @@ export class DrizzleStatement<M extends Model, R>
    * @description Compiles a decaf condition into a Drizzle SQL expression
    * @summary Recursively handles the group operators (`AND`/`OR`/`NOT`) and maps
    * the comparison operators to the dialect-specific Drizzle equivalents
-   * (`eq`, `gt`, `like`, `inArray`, ...), including `NULL`-aware equality and the
-   * PostgreSQL `~` regular-expression operator.
+   * (`eq`, `gt`, `like`, `inArray`, ...), including `NULL`-aware equality, the
+   * unary `EXISTS` existence check (`IS NOT NULL`) and the PostgreSQL `~`
+   * regular-expression operator.
    * @param {Condition<M>} condition The decaf condition to compile
    * @return {SQL} The Drizzle SQL expression
    * @throws {QueryError} When a comparison or nested condition is malformed
@@ -139,6 +140,11 @@ export class DrizzleStatement<M extends Model, R>
 
     const column = this.resolveColumn(attr1 as string);
     switch (operator) {
+      case Operator.EXISTS:
+        // EXISTS is a unary condition: it carries no comparison value to bind and
+        // maps to a portable `IS NOT NULL` check, matching the EQUAL/DIFFERENT
+        // null handling below and for-typeorm's `IS NOT NULL` mapping.
+        return sql`${column} is not null`;
       case Operator.EQUAL:
         return comparison === null ? sql`${column} is null` : eq(column, comparison);
       case Operator.DIFFERENT:
