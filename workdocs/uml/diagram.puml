@@ -1,11 +1,69 @@
 @startuml
+autonumber
+skinparam backgroundColor #FEFEFE
+skinparam sequence {
+  ActorBackgroundColor #FDF2D0
+  ParticipantBackgroundColor #E3F0DA
+  LifeLineBorderColor #A0A0A0
+  ArrowColor #5B7F95
+}
 
-[*] --> State1 : moves into state 1
-State1 --> State2 : moves into state 2
-State1 --> State3 : moves into state 3
+participant "Consumer" as C
+participant "DrizzleRepository" as R
+participant "DrizzleAdapter" as A
+participant "translateModel" as T
+participant "Drizzle db" as D
 
-State3 --> State2: moves into state 2
+C -> R : create(model)
+activate R
+R -> A : create(clazz, id, prepared record)
+activate A
+A -> T : translateModel(model, dialect)
+activate T
+T --> A : DrizzleSchema (cached)
+deactivate T
+A -> A : toProperties(record)
+A -> D : insert(schema.table).values(values)
+activate D
+D --> A : ok
+deactivate D
+A --> R : record (db-keyed)
+deactivate A
+R -> A : revert(record, clazz, id)
+activate A
+A --> R : model
+deactivate A
+R --> C : saved model
+deactivate R
 
-State2 --> [*]: end state
+== read ==
+
+C -> R : read(id)
+activate R
+R -> A : read(clazz, id)
+activate A
+A -> T : translateModel(model, dialect)
+activate T
+T --> A : DrizzleSchema (cached)
+deactivate T
+A -> D : select().from(table).where(pk = id).limit(1)
+activate D
+D --> A : rows
+deactivate D
+
+alt row found
+  A -> A : toDbRecord(row)
+  A --> R : record (db-keyed)
+  deactivate A
+  R -> A : revert(record, clazz, id)
+  activate A
+  A --> R : model
+  deactivate A
+else no row
+  A -> A : throw NotFoundError
+  deactivate A
+end
+R --> C : model
+deactivate R
 
 @enduml

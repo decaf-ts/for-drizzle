@@ -11,6 +11,9 @@ const config = {
   collectCoverageFrom: ["src/**/*.{js,jsx,ts,tsx}", "!src/bin"],
   reporters: ["default"],
   watchman: false,
+  moduleNameMapper: {
+    "^@decaf-ts/([^/]+)$": "<rootDir>/node_modules/@decaf-ts/$1",
+  },
 };
 
 // eslint-disable-next-line no-undef

@@ -7,7 +7,7 @@
 
 ## Getting help
 
-If you have bug reports, questions or suggestions, please [create a new issue](https://github.com/decaf-ts/ts-workspace/issues/new/choose).
+If you have bug reports, questions or suggestions, please [create a new issue](https://github.com/decaf-ts/for-drizzle/issues/new/choose).
 
 ## Contributing
 

@@ -20,3 +20,6 @@
 /.confluence-token
 /node_modules
 !.gitkeep
+/workdocs/locks/*
+!/workdocs/locks/.gitkeep
+/docker/.env

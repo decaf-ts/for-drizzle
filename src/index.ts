@@ -1,33 +1,56 @@
-/**
- * @module ts-workspace
- * @description This module serves as the main entry point for the ts-workspace library.
- * @summary Aggregates and exports functionality from various submodules and utilities within the project.
- * 
- * The module includes:
- * 1. Utility functions and types from the "./utils" directory:
- *    - These likely contain helper functions, common types, and shared functionality used throughout the project.
- *    - May include operations for data manipulation, type checking, or other general-purpose utilities.
- * 
- * 2. A namespace and related types from the "./namespace" directory:
- *    - This could contain domain-specific code or a collection of related functionality.
- *    - Might include interfaces, types, or classes that represent core concepts in the library.
- * 
- * 3. A VERSION constant:
- *    - Represents the current version of the module.
- *    - Useful for version checking and compatibility purposes.
- * 
- * This structure provides a clean and organized export of the module's functionality, allowing consumers
- * to easily import and use specific parts of the library as needed.
- */
+import { Adapter } from "@decaf-ts/core";
+import { Metadata } from "@decaf-ts/decoration";
+import { DrizzleAdapter } from "./DrizzleAdapter";
+import { DrizzleFlavour } from "./constants";
 
-export * from "./utils";
-export * from "./namespace";
+// Registers the Drizzle flavour as the current adapter flavour and
+// makes the adapter discoverable through decaf's flavour registry.
+Adapter.setCurrent(DrizzleFlavour);
+DrizzleAdapter.decoration();
+
+export * from "./constants";
+export * from "./types";
+export * from "./errors";
+export * from "./schema";
+export * from "./query";
+export * from "./indexes";
+export * from "./migrations";
+export * from "./sequences";
+export * from "./DrizzleContextLock";
+export * from "./DrizzleAdapter";
 
 /**
+ * @description Package version identifier
+ * @summary Stores the current package version string for the for-drizzle module.
  * @const VERSION
- * @name VERSION
- * @description Represents the current version of the ts-workspace module.
- * @summary The actual version number is replaced during the build process.
- * @type {string}
+ * @memberOf module:for-drizzle
  */
 export const VERSION = "##VERSION##";
+
+/**
+ * @description Represents the current commit hash of the module build
+ * @summary Stores the current git commit hash for the package. The build replaces
+ * the placeholder with the actual commit hash at publish time.
+ * @const COMMIT
+ * @memberOf module:for-drizzle
+ */
+export const COMMIT = "##COMMIT##";
+
+/**
+ * @description Represents the full version string of the module
+ * @summary Stores the semver version and commit hash for the package. The build
+ * replaces the placeholder with the actual `<version>-<commit>` value at publish time.
+ * @const FULL_VERSION
+ * @memberOf module:for-drizzle
+ */
+export const FULL_VERSION = "##FULL_VERSION##";
+
+/**
+ * @description Package name identifier
+ * @summary Stores the package name string for the for-drizzle module.
+ * @const PACKAGE_NAME
+ * @memberOf module:for-drizzle
+ */
+export const PACKAGE_NAME = "##PACKAGE##";
+
+Metadata.registerLibrary(PACKAGE_NAME, VERSION);
