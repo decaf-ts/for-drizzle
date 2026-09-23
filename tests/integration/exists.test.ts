@@ -87,6 +87,26 @@ class ExistsRepo extends Repository<ExistsUser, DrizzleAdapter> {
   ): Promise<boolean> {
     throw new UnsupportedError(`Method overridden by @query decorator.`);
   }
+
+  @query()
+  existsNotByNickname(
+    nickname: string,
+    orderBy?: OrderBySelector<any>[],
+    limit?: number,
+    offset?: number
+  ): Promise<boolean> {
+    throw new UnsupportedError(`Method overridden by @query decorator.`);
+  }
+
+  @query()
+  existsNotByAlias(
+    alias: string,
+    orderBy?: OrderBySelector<any>[],
+    limit?: number,
+    offset?: number
+  ): Promise<boolean> {
+    throw new UnsupportedError(`Method overridden by @query decorator.`);
+  }
 }
 
 forEachDialect("Drizzle EXISTS queries", async (handle) => {
@@ -133,20 +153,31 @@ forEachDialect("Drizzle EXISTS queries", async (handle) => {
   // `existsBy<Field>` returns false when no seeded record has the field.
   await expect(repo.existsByAlias("ignored")).resolves.toBe(false);
 
-  // `DrizzleStatement.prepare()` is a deliberate no-op, so core `squash()` is never
-  // reached for for-drizzle. Forcing simple-query preparation on a negated EXISTS
-  // must therefore stay on the general query path and return the correct complement
-  // rows rather than squashing into a bogus prepared method name.
-  const forced = repo.override({ forcePrepareSimpleQueries: true });
-  const forcedWithoutNickname = await forced
-    .select()
-    .where(Condition.attribute<ExistsUser>("nickname").exists(false))
-    .execute();
-  expect(forcedWithoutNickname.map((u) => u.id).sort()).toEqual(["3", "4"]);
+  // `existsNotBy<Field>` is the negated naming convention: it resolves to a
+  // single `exists(false)` condition through `@query()`/MethodQueryBuilder.
+  await expect(repo.existsNotByNickname("ignored")).resolves.toBe(true);
+  await expect(repo.existsNotByAlias("ignored")).resolves.toBe(true);
 
+  // A single `exists(false)` is a simple query. Forcing simple-query
+  // preparation squashes the select onto the negated list-returning prepared
+  // statement and still returns the full complement rows (never the boolean
+  // `.limit(1)` result of the `existsNotOf` existence check).
+  const forced = repo.override({ forcePrepareSimpleQueries: true });
+
+  const forcedStatement = forced
+    .select()
+    .where(Condition.attribute<ExistsUser>("nickname").exists(false));
+  expect((forcedStatement as any).isSimpleQuery()).toBe(true);
+  const forcedWithoutNickname = await forcedStatement.execute();
+  expect(Array.isArray(forcedWithoutNickname)).toBe(true);
+  expect(forcedWithoutNickname.map((u) => u.id).sort()).toEqual(["3", "4"]);
+  expect(forcedWithoutNickname.every((u) => u.nickname == null)).toBe(true);
+
+  // The positive simple-query preparation keeps the full matching rows too.
   const forcedWithNickname = await forced
     .select()
     .where(Condition.attribute<ExistsUser>("nickname").exists())
     .execute();
+  expect(Array.isArray(forcedWithNickname)).toBe(true);
   expect(forcedWithNickname.map((u) => u.id).sort()).toEqual(["1", "2"]);
 });

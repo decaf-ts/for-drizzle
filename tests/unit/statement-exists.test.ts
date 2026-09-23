@@ -173,3 +173,54 @@ describe("DrizzleStatement EXISTS translation", () => {
     expect(serialised.params).toEqual([7]);
   });
 });
+
+describe("DrizzleStatement EXISTS simple-query preparation", () => {
+  // A single unary EXISTS condition is a simple query: core `prepare()` squashes
+  // it onto a prepared statement, and `DrizzleStatement.prepare()` delegates to
+  // that core behaviour. Core resolves the negated form to the list-returning
+  // `listByNotExists`/`listByExists` keys so a select keeps full-list semantics
+  // (SAA-1696 rev 5). Against the previously pinned core `d8ddc5e` the same
+  // delegation produced the boolean `existsNotOf`/`existsOf` keys; the for-drizzle
+  // delta itself is agnostic and forward-compatible with both.
+  it("classifies a single exists(false) as a simple query and squashes it to the negated list-returning prepared statement", async () => {
+    const statement = newStatement();
+    statement.where(
+      Condition.attribute<ExistsConditionItem>("nickname").exists(false)
+    );
+
+    expect((statement as any).isSimpleQuery()).toBe(true);
+    await statement.prepare({ get: () => undefined } as any);
+
+    expect((statement as any).prepared).toMatchObject({
+      method: "listByNotExists",
+      args: ["nickname"],
+    });
+  });
+
+  it("still squashes a single positive exists() to the positive list-returning prepared statement", async () => {
+    const statement = newStatement();
+    statement.where(
+      Condition.attribute<ExistsConditionItem>("nickname").exists()
+    );
+
+    expect((statement as any).isSimpleQuery()).toBe(true);
+    await statement.prepare({ get: () => undefined } as any);
+
+    expect((statement as any).prepared).toMatchObject({
+      method: "listByExists",
+      args: ["nickname"],
+    });
+  });
+
+  it("keeps the negated squash off the boolean existsNotOf contract", async () => {
+    const statement = newStatement();
+    statement.where(
+      Condition.attribute<ExistsConditionItem>("nickname").exists(false)
+    );
+
+    await statement.prepare({ get: () => undefined } as any);
+
+    // A select must never squash onto the boolean `.limit(1)` existence check.
+    expect((statement as any).prepared.method).not.toBe("existsNotOf");
+  });
+});

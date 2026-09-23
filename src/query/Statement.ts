@@ -32,7 +32,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { DrizzleAdapter } from "../DrizzleAdapter";
-import { DrizzleQuery } from "../types";
+import { DrizzleContext, DrizzleQuery } from "../types";
 import { translateModel } from "../schema/translation";
 
 /**
@@ -524,13 +524,25 @@ export class DrizzleStatement<M extends Model, R>
   }
 
   /**
-   * @description Drizzle handles statement preparation internally
-   * @summary The adapter builds and executes SQL at call time; no separate
-   * prepared-statement squashing is required, so this is a no-op that keeps the
-   * statement in raw execution mode.
-   * @return {this} The statement itself
+   * @description Prepares the statement for execution
+   * @summary Drizzle builds and executes its SQL at call time, so no general
+   * prepared-statement squashing is required and this stays a no-op. The exception
+   * is a single unary `EXISTS` condition: core treats `exists(true)` and
+   * `exists(false)` as simple queries and squashes them onto its list-returning
+   * prepared statement, so that simple-query treatment is applied here as well
+   * (matching the other delivery adapters).
+   * @param {DrizzleContext} [ctx] The active context
+   * @return {this} The statement itself, prepared when it holds a simple EXISTS
    */
-  override async prepare(): Promise<this> {
+  override async prepare(ctx?: DrizzleContext): Promise<this> {
+    if (
+      this.isSimpleQuery() &&
+      this.whereCondition &&
+      (this.whereCondition as unknown as { operator?: Operator })["operator"] ===
+        Operator.EXISTS
+    ) {
+      await super.prepare(ctx);
+    }
     return this;
   }
 
